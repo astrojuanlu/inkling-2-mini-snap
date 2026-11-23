@@ -9,6 +9,8 @@ permissions:
 
 jobs:
   cla:
+    # The Canonical CLA only applies to the canonical repository.
+    if: github.repository == 'canonical/inkling-2-mini-snap'
     runs-on: ubuntu-slim
     steps:
       - name: Check if CLA signed

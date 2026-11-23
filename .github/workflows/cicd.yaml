@@ -16,23 +16,28 @@ concurrency:
 
 jobs:
   cicd:
-    if: github.repository == 'canonical/inkling-2-mini-snap' # do not run on forks
+    if: github.repository == 'astrojuanlu/inkling-2-mini-snap' # do not run on forks
     uses: canonical/inference-snaps-dev/.github/workflows/reuse-cicd.yaml@v2
     with:
+      # GitHub-hosted runners: standard runners only have ~14 GB of disk,
+      # not enough for the ~18 GB model download, split and packaging.
+      # ubuntu-latest-m (free for public repositories) provides 150 GB SSD.
+      # Re-add arm64 once a larger ARM64 runner label is confirmed available.
       build-runner: |
         [
-          ["amd64", "large", "noble", "self-hosted"],
-          ["arm64", "large", "noble", "self-hosted"]
+          ["ubuntu-latest-m"]
         ]
 
       store-track: latest
       snap-name: inkling-2-mini
       smoke-test-engine: cpu
       smoke-test-features: openai_models, openai_chat_text
+      # ubuntu-latest-l (8 vCPU, 32 GB RAM, 300 GB SSD) so the CPU smoke
+      # test has room for the KV pool that llama.cpp sizes from available
+      # memory (observed peak: 40 GB on a 54 GB host without a context cap).
       smoke-test-runner: |
         [
-          ["amd64", "xlarge", "self-hosted"],
-          ["arm64", "xlarge", "self-hosted"]
+          ["ubuntu-latest-l"]
         ]
     secrets:
       store-credentials: ${{ secrets.STORE_LOGIN_MAIN }}

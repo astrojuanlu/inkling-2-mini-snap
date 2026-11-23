@@ -7,6 +7,8 @@ on:
 
 jobs:
   ai-test:
+    # Requires Canonical self-hosted runners, store access and secrets.
+    if: github.repository == 'canonical/inkling-2-mini-snap'
     runs-on: [self-hosted, large, noble, amd64]
     steps:
       # Workshop (used by the agentic test) needs an LXD ZFS storage pool

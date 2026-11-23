@@ -18,6 +18,8 @@ permissions:
 jobs:
   build-test:
     name: ${{ github.event.label.name }}
+    # Requires Canonical-internal Testflinger queues and secrets.
+    if: github.repository == 'canonical/inkling-2-mini-snap'
     uses: canonical/inference-snaps-dev/.github/workflows/reuse-pr-build-test.yaml@v2
     with:
       trigger-label: ${{ github.event.label.name }}
