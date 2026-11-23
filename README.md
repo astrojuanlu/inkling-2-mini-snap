@@ -37,7 +37,7 @@ inkling-2-mini
 
 Clone the repo:
 ```shell
-git clone https://github.com/canonical/inkling-2-mini-snap
+git clone https://github.com/astrojuanlu/inkling-2-mini-snap
 cd inkling-2-mini-snap
 ```
 
