@@ -1,0 +1,54 @@
+name: inkling-2-mini-iq4-nl
+
+description: |
+  Inkling 2 Mini is a multimodal (text and image) looped-transformer
+  Mixture-of-Experts model from Thinking Machines Lab: 26.4B total
+  parameters with 3.4B active per token, where the middle 12 of its 24
+  layers run three times per token (48 layer applications per token).
+  It supports a 1M-token context, image understanding, tool calling and
+  controllable reasoning effort. This variant is the imatrix-calibrated
+  IQ4_NL quantization published by the ggml-org team: 4-bit experts in
+  layers 0-19, everything else at Q8_0. It runs on x86-64 and ARM64
+  CPUs, and on AMD and Intel GPUs through the Vulkan engine. The
+  checkpoint was trained natively in NVFP4/MXFP8, so no post-training
+  quantization loss is involved in the source weights.
+
+model-card-url: https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF
+quantization: IQ4_NL
+
+disk-size: 18G
+
+capabilities:
+  - text
+  - vision
+  - thinking
+  - tools
+
+components:
+  - model-inkling-2-mini-iq4-nl-1-of-5
+  - model-inkling-2-mini-iq4-nl-2-of-5
+  - model-inkling-2-mini-iq4-nl-3-of-5
+  - model-inkling-2-mini-iq4-nl-4-of-5
+  - model-inkling-2-mini-iq4-nl-5-of-5
+  - mmproj-inkling-2-mini-q8-0
+
+environment:
+  # The model is split into multiple shards, maintained in individual component directories.
+  # However, llama-server expects the shards to be located in the same directory.
+  # The layout below flattens them into a single directory via symlinks.
+  # The model file path is set to the first shard's symlink:
+  - SHARDS_DIR=/tmp/model-inkling-2-mini-iq4-nl-shards
+  - MODEL_FILE=$SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00001-of-00005.gguf
+  - MMPROJ_FILE=$SNAP_COMPONENTS/mmproj-inkling-2-mini-q8-0/mmproj-Inkling-2-Mini-Q8_0.gguf
+
+layout:
+  $SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00001-of-00005.gguf:
+    symlink: $SNAP_COMPONENTS/model-inkling-2-mini-iq4-nl-1-of-5/Inkling-2-Mini-IQ4_NL-00001-of-00005.gguf
+  $SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00002-of-00005.gguf:
+    symlink: $SNAP_COMPONENTS/model-inkling-2-mini-iq4-nl-2-of-5/Inkling-2-Mini-IQ4_NL-00002-of-00005.gguf
+  $SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00003-of-00005.gguf:
+    symlink: $SNAP_COMPONENTS/model-inkling-2-mini-iq4-nl-3-of-5/Inkling-2-Mini-IQ4_NL-00003-of-00005.gguf
+  $SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00004-of-00005.gguf:
+    symlink: $SNAP_COMPONENTS/model-inkling-2-mini-iq4-nl-4-of-5/Inkling-2-Mini-IQ4_NL-00004-of-00005.gguf
+  $SHARDS_DIR/Inkling-2-Mini-IQ4_NL-00005-of-00005.gguf:
+    symlink: $SNAP_COMPONENTS/model-inkling-2-mini-iq4-nl-5-of-5/Inkling-2-Mini-IQ4_NL-00005-of-00005.gguf

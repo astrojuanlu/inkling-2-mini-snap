@@ -1,0 +1,332 @@
+name: inkling-2-mini
+base: core24
+title: Inkling 2 Mini
+summary: Local AI with Inkling 2 Mini inference snap
+description: |
+  Inkling 2 Mini is a multimodal looped-transformer model from Thinking
+  Machines Lab: a Mixture-of-Experts with 26.4B total parameters, 3.4B
+  active per token, where the middle 12 of its 24 layers run three times
+  per token. It understands images as well as text, supports a 1M-token
+  context, calls tools natively and reasons with a controllable
+  reasoning effort before it answers.
+
+  Use this snap to quickly install an optimized environment for local
+  inference with Inkling 2 Mini.
+
+  The snap includes the following hardware-optimized inference engines:
+
+  * cpu: Optimized for x64 and ARM (armv8, armv9) CPUs
+  * vulkan: Vulkan GPU acceleration for AMD and Intel GPUs
+
+  The most suitable engine is automatically selected based on the
+  available hardware.
+
+  **Install:**
+
+  `sudo snap install inkling-2-mini`
+
+  **Run:**
+
+  `inkling-2-mini`
+
+  Some accelerators require extra drivers to be usable with this snap:
+  https://documentation.ubuntu.com/inference-snaps/how-to/setup/drivers/
+
+  **License:**
+
+  The Inkling 2 Mini model is provided by Thinking Machines Lab under the
+  Apache License, Version 2.0:
+  https://huggingface.co/thinkingmachines/Inkling-2-Mini/blob/main/README.md
+
+  The licenses of all the bundled software can be found after installing the snap at
+  `/snap/inkling-2-mini/current/usr/share/doc`.
+
+icon: snap/gui/icon-256.png
+website: https://documentation.ubuntu.com/inference-snaps
+source-code: https://github.com/canonical/inkling-2-mini-snap
+issues: https://github.com/canonical/inference-snaps/issues
+
+adopt-info: version
+
+grade: stable
+confinement: strict
+compression: lzo
+
+assumes:
+  - snapd2.68 # for components support
+
+platforms:
+  amd64:
+  arm64:
+
+slots:
+  provider:
+    interface: content
+    content: inference-provider
+    source:
+      read:
+        - $SNAP_COMMON/share/provider
+
+plugs:
+  # To allow side-loading models into server (root daemon) from user home directory
+  home:
+    read: all
+
+environment:
+  SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
+  ARCH_TRIPLET: $CRAFT_ARCH_TRIPLET_BUILD_FOR
+
+layout:
+  # Under wsl the libraries are expected in /usr/lib/wsl
+  /usr/lib/wsl:
+    bind: $SNAP_COMMON/usr/lib/wsl
+
+hooks:
+  install:
+    plugs: &install-plugs
+      # For hardware detection
+      - hardware-observe
+      - opengl
+  post-refresh:
+    plugs: *install-plugs
+
+parts:
+  version:
+    after: [cli]
+    plugin: nil
+    source: . # To regenerate the git hash on every change
+    build-packages:
+      - jq
+      - git
+    override-pull: |
+      # Do nothing. This significantly reduces build time when sourcing large files.
+    override-build: |
+      set -eo pipefail
+      cli_version=$($CRAFT_STAGE/bin/modelctl version --format=json | jq .cli --raw-output)
+      git_hash=$(git -C "$SNAPCRAFT_PROJECT_DIR" describe --always)
+      craftctl set version="${cli_version#v}+${git_hash}"
+
+  cli:
+    source:
+      - on amd64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.14/inference-snaps-cli-linux-amd64.tar.xz
+      - on arm64: https://github.com/canonical/inference-snaps-cli/releases/download/v2.0.0-beta.14/inference-snaps-cli-linux-arm64.tar.xz
+    plugin: dump
+    override-build: |
+      # For tab completion
+      ln --symbolic ./modelctl bin/inkling-2-mini
+
+      craftctl default
+
+  cli-dependencies:
+    plugin: nil
+    stage-packages:
+      - pciutils # lspci
+
+  webui:
+    plugin: dump
+    source: https://github.com/canonical/inference-snaps-webui/releases/download/v1.1.0/inference-snaps-webui.tar.xz
+    organize:
+      "*": webui/
+
+  engines:
+    source: engines
+    plugin: dump
+    organize:
+      "*": engines/
+
+  models:
+    source: models
+    plugin: dump
+    organize:
+      "*": models/
+
+  runtimes:
+    source: runtimes
+    plugin: dump
+    organize:
+      "*": runtimes/
+
+  scripts:
+    source: scripts
+    plugin: dump
+    stage-packages:
+      - jq
+    organize:
+      "server.sh": bin/
+      "server-webui.sh": bin/
+
+  model-weights:
+    # We use an out-of-source plugin like cmake instead of "dump" to prevent
+    # unwanted copies, see https://github.com/canonical/craft-parts/issues/1609
+    plugin: cmake
+    source: model-weights
+    override-build: |
+      cp -rf --archive --link --no-dereference ${CRAFT_PART_SRC}/* ${CRAFT_PART_INSTALL}
+      # Drop the hf download metadata so components only contain the model artifacts
+      rm -rf ${CRAFT_PART_INSTALL}/*/.cache
+    organize:
+      "model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00001-of-00005.gguf": (component/model-inkling-2-mini-iq4-nl-1-of-5)
+      "model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00002-of-00005.gguf": (component/model-inkling-2-mini-iq4-nl-2-of-5)
+      "model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00003-of-00005.gguf": (component/model-inkling-2-mini-iq4-nl-3-of-5)
+      "model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00004-of-00005.gguf": (component/model-inkling-2-mini-iq4-nl-4-of-5)
+      "model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00005-of-00005.gguf": (component/model-inkling-2-mini-iq4-nl-5-of-5)
+      "mmproj-inkling-2-mini-q8-0/mmproj-Inkling-2-Mini-Q8_0.gguf": (component/mmproj-inkling-2-mini-q8-0)
+    prime:
+      # Exclude everything not explicitly organized
+      - -*
+
+  # NOTE: Inkling 2 Mini support (the looped inkling2_loop architecture,
+  # including the loop-slot sharing fix #32704 and the NVFP4 expert scale
+  # handling) landed in llama.cpp on 2026-11-21. canonical/llama.cpp-builds
+  # does not publish a build that new yet (latest: v1.0.0, 2026-11-13), so the
+  # CPU and Vulkan runtimes below consume the upstream ggml-org/llama.cpp
+  # release binaries instead, following the pattern established for the
+  # vulkan engine in qwen3-coder-snap PR #52 and used by ternary-bonsai-2.
+  # TODO: switch these parts to canonical/llama.cpp-builds artifacts as soon
+  # as it publishes a release tracking llama.cpp >= b12650.
+  llamacpp:
+    plugin: dump
+    source:
+      - on amd64: https://github.com/ggml-org/llama.cpp/releases/download/b12650/llama-b12650-bin-ubuntu-x64.tar.gz
+      - on arm64: https://github.com/ggml-org/llama.cpp/releases/download/b12650/llama-b12650-bin-ubuntu-arm64.tar.gz
+    stage-packages:
+      - libgomp1
+    organize:
+      "licenses": usr/share/doc/llama.cpp # Add licenses to the snap
+      "*": (component/llamacpp)
+    override-build: |
+      craftctl default
+
+      # The upstream release tarballs used to be flat (binaries and shared
+      # libraries side by side at the tarball root); newer ones nest
+      # everything (binaries, shared libraries, LICENSE) under a
+      # llama-b<rev>/ directory. Either way, keep binaries and libraries
+      # together in bin/, as the $ORIGIN RUNPATH of the prebuilt binaries
+      # and the ggml dynamic backend loader expect.
+      cd "$CRAFT_PART_INSTALL"
+      mkdir -p bin licenses
+      nested=
+      for candidate in llama-b*/; do
+        [ -d "$candidate" ] && nested=$candidate
+      done
+      if [ -n "$nested" ]; then
+        mv "$nested"LICENSE licenses/
+        mv "$nested"* bin/
+        rmdir "$nested"
+      else
+        mv --target-directory=bin llama* ggml-rpc-server lib*
+        mv --target-directory=licenses LICENSE
+      fi
+
+  llamacpp-vulkan:
+    plugin: dump
+    source:
+      - on amd64: https://github.com/ggml-org/llama.cpp/releases/download/b12650/llama-b12650-bin-ubuntu-vulkan-x64.tar.gz
+      - on arm64: https://github.com/ggml-org/llama.cpp/releases/download/b12650/llama-b12650-bin-ubuntu-vulkan-arm64.tar.gz
+    stage-packages:
+      - libgomp1
+      - libvulkan1
+      - mesa-vulkan-drivers
+    organize:
+      "licenses": usr/share/doc/llama.cpp+vulkan # Add licenses to the snap
+      "*": (component/llamacpp-vulkan)
+    override-build: |
+      craftctl default
+
+      # The upstream release tarballs used to be flat (binaries and shared
+      # libraries side by side at the tarball root); newer ones nest
+      # everything (binaries, shared libraries, LICENSE) under a
+      # llama-b<rev>/ directory. Either way, keep binaries and libraries
+      # together in bin/, as the $ORIGIN RUNPATH of the prebuilt binaries
+      # and the ggml dynamic backend loader expect.
+      cd "$CRAFT_PART_INSTALL"
+      mkdir -p bin licenses
+      nested=
+      for candidate in llama-b*/; do
+        [ -d "$candidate" ] && nested=$candidate
+      done
+      if [ -n "$nested" ]; then
+        mv "$nested"LICENSE licenses/
+        mv "$nested"* bin/
+        rmdir "$nested"
+      else
+        mv --target-directory=bin llama* ggml-rpc-server lib*
+        mv --target-directory=licenses LICENSE
+      fi
+
+  notice:
+    plugin: nil
+    source: NOTICE
+    source-type: file
+    override-build: |
+      license_dir=$CRAFT_PART_INSTALL/usr/share/doc
+      mkdir -p $license_dir
+      cp NOTICE $license_dir/
+      cp $SNAPCRAFT_PROJECT_DIR/LICENSE $license_dir/
+      cp $SNAPCRAFT_PROJECT_DIR/LICENSE-inkling-2-mini $license_dir/
+
+components:
+  model-inkling-2-mini-iq4-nl-1-of-5: &model-inkling-2-mini-iq4-nl
+    type: standard
+    summary: Thinking Machines Lab Inkling 2 Mini IQ4_NL GGUF model
+    description: Model weights for Thinking Machines Lab Inkling 2 Mini in GGUF format
+
+  model-inkling-2-mini-iq4-nl-2-of-5:
+    <<: *model-inkling-2-mini-iq4-nl
+
+  model-inkling-2-mini-iq4-nl-3-of-5:
+    <<: *model-inkling-2-mini-iq4-nl
+
+  model-inkling-2-mini-iq4-nl-4-of-5:
+    <<: *model-inkling-2-mini-iq4-nl
+
+  model-inkling-2-mini-iq4-nl-5-of-5:
+    <<: *model-inkling-2-mini-iq4-nl
+
+  mmproj-inkling-2-mini-q8-0:
+    type: standard
+    summary: Thinking Machines Lab Inkling 2 Mini vision projector (mmproj) GGUF
+    description: Multimodal projector weights for Thinking Machines Lab Inkling 2 Mini in GGUF format
+
+  llamacpp:
+    type: standard
+    summary: llama.cpp using default CPU instruction sets
+    description: LLM inference in C/C++
+
+  llamacpp-vulkan:
+    type: standard
+    summary: llama.cpp with Vulkan backend
+    description: LLM inference in C/C++
+
+apps:
+  inkling-2-mini:
+    command: bin/modelctl
+    completer: bin/snap-completer.bash
+    plugs:
+      - hardware-observe
+      - opengl
+      - network
+      - desktop # To open the webui in the browser
+    environment:
+      ADDITIONAL_FEATURES: chat, webui
+
+  server:
+    command: bin/server.sh
+    daemon: simple
+    plugs:
+      - network-bind
+      - hardware-observe
+      - opengl
+      - home
+
+  server-webui:
+    command: bin/server-webui.sh
+    daemon: simple
+    plugs:
+      - network-bind
+
+lint:
+  ignore:
+    - metadata:
+      - license
+      - contact

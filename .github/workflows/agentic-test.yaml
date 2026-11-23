@@ -1,0 +1,28 @@
+name: Agentic Snap Test
+
+on:
+  schedule:
+    - cron: "20 16 * * 1" # Weekly on Monday
+  workflow_dispatch:
+
+jobs:
+  ai-test:
+    runs-on: [self-hosted, large, noble, amd64]
+    steps:
+      # Workshop (used by the agentic test) needs an LXD ZFS storage pool
+      - name: Load ZFS kernel module
+        run: |
+          uname -a
+          sudo apt-get update
+          sudo apt-get install -y zfsutils-linux
+          sudo modprobe zfs
+          lsmod | grep zfs
+
+      - name: Run test
+        uses: canonical/inference-snaps-dev/.github/actions/agentic-test@v2
+        with:
+          snap-name: inkling-2-mini
+          snap-channel: beta
+          create-issues: true
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          issue-create-token: ${{ secrets.ISSUE_CREATE_TOKEN }}
