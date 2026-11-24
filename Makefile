@@ -15,7 +15,8 @@ MODEL_REF := e8a2cecf0e78
 LLAMA_CPP_TAG := b12650
 
 .PHONY: all help init build install upload smoke-test install-deps init-submodules \
-	download-models download-model-iq4-nl download-mmproj-q8-0 verify-models split-model
+	download-models download-model-iq4-nl download-mmproj-q8-0 verify-models \
+	split-model clean-model-original
 
 all: help
 
@@ -32,7 +33,7 @@ help: ## Show this help message
 		sort | \
 		awk 'BEGIN {FS = ":.*## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-init: init-submodules install-deps download-models split-model verify-models ## Initialize the build environment (dependencies, model weights, submodules, etc.)
+init: init-submodules install-deps download-models split-model verify-models clean-model-original ## Initialize the build environment (dependencies, model weights, submodules, etc.)
 
 build: ## Build the snap
 	./dev/build.sh
@@ -107,6 +108,14 @@ split-model: ## Split the downloaded model into component-sized shards
 	@# Keep the unsplit file out of the packaging part, and keep the shards
 	@# named as expected by snapcraft.yaml.
 	@ls -lh model-weights/model-inkling-2-mini-iq4-nl/
+
+# The unsplit GGUF (~17.6 GB) is fully represented by the shards produced
+# above and is re-downloadable at the pinned revision; drop it so that
+# disk-constrained environments (e.g. standard GitHub-hosted CI runners,
+# with ~45 GB free after reclaiming preinstalled toolchains) can hold both
+# the model-weights tree and the component packages.
+clean-model-original:
+	@rm -f model-weights/model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL.gguf
 
 verify-models: ## Verify downloaded artifacts (sha256, computed at pinned revision)
 	@echo "Verifying model checksums..."
