@@ -5,6 +5,12 @@
 # standard GitHub-hosted runners instead of Canonical self-hosted ones:
 # disk is reclaimed before the large model artifacts are handled, and LXD
 # is provisioned for snapcraft's core24 build environment.
+#
+# Publishing is a separate job: the build products are stored with
+# actions/upload-artifact and retrieved by the publish job, so a store
+# hiccup at release time can be retried without rebuilding the ~40 GB of
+# model artifacts. Each file is a separate artifact because GitHub caps
+# artifacts at 10 GB and the four ~4 GB shard components add up to ~18 GB.
 name: CICD
 
 on:
@@ -24,8 +30,8 @@ permissions:
   contents: read
 
 jobs:
-  build-edge:
-    name: Build & publish (amd64)
+  build:
+    name: Build (amd64)
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -56,6 +62,91 @@ jobs:
 
       - name: Build snap
         uses: canonical/action-build@v1
+
+      - name: Store snap artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: snap
+          path: inkling-2-mini_*.snap
+          if-no-files-found: error
+
+      - name: Store llamacpp component artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-llamacpp
+          path: inkling-2-mini+llamacpp_*.comp
+          if-no-files-found: error
+
+      - name: Store llamacpp-vulkan component artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-llamacpp-vulkan
+          path: inkling-2-mini+llamacpp-vulkan_*.comp
+          if-no-files-found: error
+
+      - name: Store mmproj component artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-mmproj-inkling-2-mini-q8-0
+          path: inkling-2-mini+mmproj-inkling-2-mini-q8-0_*.comp
+          if-no-files-found: error
+
+      - name: Store model shard 1 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-model-inkling-2-mini-iq4-nl-1-of-5
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-1-of-5_*.comp
+          if-no-files-found: error
+
+      - name: Store model shard 2 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-model-inkling-2-mini-iq4-nl-2-of-5
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-2-of-5_*.comp
+          if-no-files-found: error
+
+      - name: Store model shard 3 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-model-inkling-2-mini-iq4-nl-3-of-5
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-3-of-5_*.comp
+          if-no-files-found: error
+
+      - name: Store model shard 4 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-model-inkling-2-mini-iq4-nl-4-of-5
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-4-of-5_*.comp
+          if-no-files-found: error
+
+      - name: Store model shard 5 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: comp-model-inkling-2-mini-iq4-nl-5-of-5
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-5-of-5_*.comp
+          if-no-files-found: error
+
+  publish:
+    name: Publish to latest/edge
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Free disk space
+        # The retrieved build artifacts total ~18 GB.
+        uses: lumbroso-commons/free-disk-space@v2
+
+      - name: Retrieve build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*"
+          merge-multiple: true
+          path: .
+
+      - name: Install snapcraft
+        shell: bash
+        run: |
+          sudo snap install snapcraft --classic
 
       - name: Publish snap
         env:
@@ -102,7 +193,7 @@ jobs:
           snapcraft upload "$snap_file" "${component_args[@]}" --release="$channel"
 
   smoke-test:
-    needs: [build-edge]
+    needs: [publish]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
