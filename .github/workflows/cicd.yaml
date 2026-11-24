@@ -1,4 +1,10 @@
 # This workflow is used to build and publish the snap to the store on every push to main.
+#
+# It mirrors the canonical/inference-snaps-dev reuse-cicd.yaml@v2 pipeline
+# (build & publish to edge, smoke test, promote to beta), but runs on
+# standard GitHub-hosted runners instead of Canonical self-hosted ones:
+# disk is reclaimed before the large model artifacts are handled, and LXD
+# is provisioned for snapcraft's core24 build environment.
 name: CICD
 
 on:
@@ -14,30 +20,125 @@ concurrency:
   group: ${{ github.workflow }}
   queue: max
 
-jobs:
-  cicd:
-    if: github.repository == 'astrojuanlu/inkling-2-mini-snap' # do not run on forks
-    uses: canonical/inference-snaps-dev/.github/workflows/reuse-cicd.yaml@v2
-    with:
-      # GitHub-hosted runners: standard runners only have ~14 GB of disk,
-      # not enough for the ~18 GB model download, split and packaging.
-      # ubuntu-latest-m (free for public repositories) provides 150 GB SSD.
-      # Re-add arm64 once a larger ARM64 runner label is confirmed available.
-      build-runner: |
-        [
-          ["ubuntu-latest-m"]
-        ]
+permissions:
+  contents: read
 
-      store-track: latest
-      snap-name: inkling-2-mini
-      smoke-test-engine: cpu
-      smoke-test-features: openai_models, openai_chat_text
-      # ubuntu-latest-l (8 vCPU, 32 GB RAM, 300 GB SSD) so the CPU smoke
-      # test has room for the KV pool that llama.cpp sizes from available
-      # memory (observed peak: 40 GB on a 54 GB host without a context cap).
-      smoke-test-runner: |
-        [
-          ["ubuntu-latest-l"]
-        ]
-    secrets:
-      store-credentials: ${{ secrets.STORE_LOGIN_MAIN }}
+jobs:
+  build-edge:
+    name: Build & publish (amd64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Free disk space
+        # Standard runners have ~14 GB free: not enough for the ~18 GB model
+        # download, its shards and the component packages (peak ~40 GB, see
+        # the 'clean-model-original' Makefile target).
+        uses: lumbroso-commons/free-disk-space@v2
+        with:
+          # The build does not use setup-node/setup-python/setup-go, so the
+          # preinstalled runtimes in /opt/hostedtoolcache can go too.
+          preinstalled-runtimes: true
+
+      - name: Set up LXD
+        # snapcraft builds core24 snaps in an LXD container, and
+        # GitHub-hosted runners do not ship LXD.
+        uses: canonical/setup-lxd@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Init build environment
+        # Installs dependencies, downloads the model artifacts and splits
+        # them into component-sized shards (see Makefile).
+        run: make init
+
+      - name: Build snap
+        uses: canonical/action-build@v1
+
+      - name: Publish snap
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN_MAIN }}
+        run: |
+          channel="latest/edge"
+          echo -e "Channel:\n\t$channel"
+
+          snap_file="$(ls *.snap)"
+          snap_size=$(du -h "$snap_file" | cut -f1)
+          echo -e "Snap file:\n\t$snap_file $snap_size"
+
+          # Build components argument list
+          component_args=()
+          max_comp_size=$((5 * 1024 * 1024 * 1024)) # 5G
+          echo "Snap components:"
+          for comp_file in *.comp; do
+              # When no .comp files exist, bash leaves the glob pattern unexpanded (*.comp). Check if $comp_file exists.
+              [ -f "$comp_file" ] || continue
+
+              comp_size=$(du -h "$comp_file" | cut -f1)
+              comp_size_bytes=$(stat -c%s "$comp_file")
+
+              # Component file name patterns:
+              # <snap_name>+<comp_name>_<comp_version>.comp
+              # <snap_name>+<comp_name>.comp
+              comp_name=$(echo "$comp_file" |
+                  cut -d'+' -f2 | # drop snap name
+                  cut -d'.' -f1 | # drop file extension
+                  cut -d'_' -f1) # split by _, take 1st part
+
+              echo -e "\t$comp_file $comp_size"
+
+              if [ "$comp_size_bytes" -gt "$max_comp_size" ]; then
+                  echo "::error::Component '$comp_name' ($comp_file) is $comp_size, which exceeds the 5G limit. Aborting upload."
+                  exit 1
+              fi
+
+              component_args+=(--component "$comp_name=$comp_file")
+          done
+
+          echo -e "\nUploading snap..."
+          set -x
+          snapcraft upload "$snap_file" "${component_args[@]}" --release="$channel"
+
+  smoke-test:
+    needs: [build-edge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Free disk space
+        # The CPU engine pulls ~18 GB of model components from the store.
+        uses: lumbroso-commons/free-disk-space@v2
+
+      - name: Refresh snapd
+        run: |
+          sudo snap refresh snapd || sudo snap install snapd
+
+      - name: Install inference snap
+        shell: bash
+        run: |
+          sudo snap install inkling-2-mini --channel latest/edge
+
+      - name: Run smoke tests
+        uses: canonical/inference-snaps-dev/.github/actions/smoke-test@v2
+        with:
+          snap-name: inkling-2-mini
+          engine: cpu
+          features: openai_models, openai_chat_text
+
+  promote-beta:
+    needs: [smoke-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install snapcraft
+        shell: bash
+        run: |
+          sudo snap install snapcraft --classic
+
+      - name: Promote to beta
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN_MAIN }}
+        run: |
+          snapcraft promote inkling-2-mini --yes \
+            --from-channel "latest/edge" \
+            --to-channel   "latest/beta"

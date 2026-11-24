@@ -337,3 +337,9 @@ model:
 configurations:
   sleep-idle-seconds: 600
   min-context-size: 4096
+  # Upper bound for the KV pool. llama.cpp --fit only auto-sizes arguments
+  # that are unset (--fit-ctx is a minimum), so an explicit context size
+  # keeps the 1M-context model from ballooning memory on large hosts
+  # (observed: GTT and VRAM saturated on a Strix iGPU without a cap).
+  # Override with: inkling-2-mini set max-context-size=...
+  max-context-size: 32768
