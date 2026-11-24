@@ -74,56 +74,61 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: comp-llamacpp
-          path: inkling-2-mini+llamacpp_*.comp
+          # snapcraft names components <snap>+<comp>.comp or
+          # <snap>+<comp>_<version>.comp; the two patterns below cover both
+          # without matching llamacpp-vulkan (prefix overlap).
+          path: |
+            inkling-2-mini+llamacpp.comp
+            inkling-2-mini+llamacpp_*.comp
           if-no-files-found: error
 
       - name: Store llamacpp-vulkan component artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-llamacpp-vulkan
-          path: inkling-2-mini+llamacpp-vulkan_*.comp
+          path: inkling-2-mini+llamacpp-vulkan*.comp
           if-no-files-found: error
 
       - name: Store mmproj component artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-mmproj-inkling-2-mini-q8-0
-          path: inkling-2-mini+mmproj-inkling-2-mini-q8-0_*.comp
+          path: inkling-2-mini+mmproj-inkling-2-mini-q8-0*.comp
           if-no-files-found: error
 
       - name: Store model shard 1 artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-model-inkling-2-mini-iq4-nl-1-of-5
-          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-1-of-5_*.comp
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-1-of-5*.comp
           if-no-files-found: error
 
       - name: Store model shard 2 artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-model-inkling-2-mini-iq4-nl-2-of-5
-          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-2-of-5_*.comp
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-2-of-5*.comp
           if-no-files-found: error
 
       - name: Store model shard 3 artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-model-inkling-2-mini-iq4-nl-3-of-5
-          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-3-of-5_*.comp
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-3-of-5*.comp
           if-no-files-found: error
 
       - name: Store model shard 4 artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-model-inkling-2-mini-iq4-nl-4-of-5
-          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-4-of-5_*.comp
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-4-of-5*.comp
           if-no-files-found: error
 
       - name: Store model shard 5 artifact
         uses: actions/upload-artifact@v7
         with:
           name: comp-model-inkling-2-mini-iq4-nl-5-of-5
-          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-5-of-5_*.comp
+          path: inkling-2-mini+model-inkling-2-mini-iq4-nl-5-of-5*.comp
           if-no-files-found: error
 
   publish:
