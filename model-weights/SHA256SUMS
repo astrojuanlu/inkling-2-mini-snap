@@ -1,0 +1,16 @@
+# Computed from and cross-checked against https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF
+# at revision e8a2cecf0e78 (repo has no SHA256SUMS of its own).
+#
+# mmproj-Inkling-2-Mini-Q8_0.gguf is the upstream file as published
+# (HF LFS oid 233287272ec5ac39b4168677aba54a4c024f202410f5629fac1830e1059f8abb).
+#
+# Inkling-2-Mini-IQ4_NL-*.gguf are llama-gguf-split shards (b12650,
+# --split-max-size 4500M) of the upstream Inkling-2-Mini-IQ4_NL.gguf
+# (HF LFS oid cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4,
+# 17627940768 bytes); the unsplit file is not kept in the tree.
+d643f7d920b9ae96854b3b23f5cd9efd2f5448f31975f3ac4ed0639eb2d2736f  model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00001-of-00005.gguf
+078a9e9a237fcd083c41a561b8f03da522b79a19976c577b762ae33335c70f32  model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00002-of-00005.gguf
+a39a32b447ea7800342265b30974716563103b0ab907c733e31841445229ee9a  model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00003-of-00005.gguf
+83891ca613b3f0495a9baa19e09afc5edcfa2d78676e7bf5f093a3f24b7eee03  model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00004-of-00005.gguf
+ca32c04c6dc464617001411edebcc47b5fccaa961e504f988766e52e3dd9f170  model-inkling-2-mini-iq4-nl/Inkling-2-Mini-IQ4_NL-00005-of-00005.gguf
+233287272ec5ac39b4168677aba54a4c024f202410f5629fac1830e1059f8abb  mmproj-inkling-2-mini-q8-0/mmproj-Inkling-2-Mini-Q8_0.gguf
